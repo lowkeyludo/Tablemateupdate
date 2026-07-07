@@ -1,0 +1,62 @@
+{
+  "name": "tablemate-windows-app-v88-auto-migrate",
+  "version": "1.8.8",
+  "description": "TableMate Windows app with automatic previous-version migration and backups.",
+  "main": "main.js",
+  "author": "TableMate",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "dist:portable": "electron-builder --win portable --publish never",
+    "dist:installer": "electron-builder --win nsis --publish never"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.tablemate.bookings",
+    "productName": "TableMate Bookings",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "app/**/*",
+      "assets/**/*",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "TableMate_Portable_${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TableMate Bookings",
+      "artifactName": "TableMate_Setup_${version}.${ext}"
+    }
+  }
+}
