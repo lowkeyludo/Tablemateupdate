@@ -1,0 +1,93 @@
+name: Build TableMate Windows v88 Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Find TableMate app folder
+        shell: pwsh
+        run: |
+          $rootPackage = "$env:GITHUB_WORKSPACE\package.json"
+          $namedPackage = "$env:GITHUB_WORKSPACE\TableMate_Windows_App_v88_Auto_Migrate_Repo\package.json"
+
+          if (Test-Path $rootPackage) {
+            $appDir = "$env:GITHUB_WORKSPACE"
+          }
+          elseif (Test-Path $namedPackage) {
+            $appDir = "$env:GITHUB_WORKSPACE\TableMate_Windows_App_v88_Auto_Migrate_Repo"
+          }
+          else {
+            $packages = Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Filter package.json -Recurse |
+              Where-Object { $_.FullName -notmatch "\\node_modules\\" } |
+              Sort-Object FullName
+
+            $preferred = $packages | Where-Object { $_.FullName -match "v88|Auto|Migrate|TableMate" } | Select-Object -First 1
+
+            if ($preferred) {
+              $appDir = Split-Path $preferred.FullName -Parent
+            }
+            elseif ($packages.Count -gt 0) {
+              $appDir = Split-Path $packages[0].FullName -Parent
+            }
+            else {
+              throw "No package.json found. Upload the CONTENTS of the TableMate repo folder, or upload the folder named TableMate_Windows_App_v88_Auto_Migrate_Repo."
+            }
+          }
+
+          echo "APP_DIR=$appDir" >> $env:GITHUB_ENV
+          Write-Host "Using app folder: $appDir"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          cd "$env:APP_DIR"
+          npm install
+
+      - name: Build Windows app
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: |
+          cd "$env:APP_DIR"
+          npm run dist -- --publish never
+
+      - name: Show release files
+        shell: pwsh
+        run: |
+          Write-Host "Release/dist files:"
+          Get-ChildItem -Path "$env:APP_DIR" -Recurse -Include *.exe,*.blockmap,*.yml |
+            Where-Object { $_.FullName -match "\\(release|dist)\\" } |
+            Select-Object FullName, Length
+
+      - name: Collect release files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\artifact-output"
+
+          Get-ChildItem -Path "$env:APP_DIR" -Recurse -Include *.exe,*.blockmap,*.yml |
+            Where-Object { $_.FullName -match "\\(release|dist)\\" } |
+            Copy-Item -Destination "$env:GITHUB_WORKSPACE\artifact-output" -Force
+
+          Get-ChildItem "$env:GITHUB_WORKSPACE\artifact-output"
+
+      - name: Upload final release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: TableMate_Windows_v88_Auto_Migrate_Release
+          path: artifact-output/**
+          if-no-files-found: error
